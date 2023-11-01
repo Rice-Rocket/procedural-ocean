@@ -29,22 +29,33 @@ struct Vertex {
 #endif
 };
 
-@group(0) @binding(0)
+@group(1) @binding(0)
 var<uniform> settings: OceanSettings;
+@group(1) @binding(1)
+var displacement_texture: texture_2d<f32>;
+@group(1) @binding(2)
+var displacement_sampler: sampler;
 
 
 struct OceanSettings {
-    wave_height: f32,
+    time: f32,
+    frequency: f32,
+    amplitude: f32,
 
 #ifdef SIXTEEN_BYTE_ALIGNMENT
-    _webgl_padding: vec3<f32>,
+    _webgl_padding: f32,
 #endif
 }
 
 
 @vertex
 fn vertex(vertex: Vertex) -> MeshVertexOutput {
-    let height = 0.0; 
+    let uv = vertex.uv;
+    let dimensions = vec2<f32>(textureDimensions(displacement_texture)) - 0.5;
+
+    let displacements = textureLoad(displacement_texture, vec2<i32>(uv * dimensions), 0); 
+    let height = displacements.x;
+    
     let position = vec3(vertex.position.x, height, vertex.position.z);
 
     var out: MeshVertexOutput;
@@ -81,4 +92,10 @@ fn vertex(vertex: Vertex) -> MeshVertexOutput {
     #endif
 
     return out;
+}
+
+
+@fragment
+fn fragment(in: MeshVertexOutput) -> @location(0) vec4<f32> {
+    return vec4(1.0);
 }
