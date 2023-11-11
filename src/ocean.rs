@@ -14,9 +14,12 @@ pub struct OceanMaterial {
     #[uniform(0, visibility(vertex, fragment))]
     pub settings: OceanSettings,
 
-    #[texture(1, visibility(vertex, fragment))]
-    #[sampler(2, visibility(vertex, fragment))]
+    #[texture(1, visibility(vertex, fragment), dimension = "2d_array")]
+    #[sampler(2)]
     pub displacements: Option<Handle<Image>>,
+    #[texture(3, visibility(vertex, fragment), dimension = "2d_array")]
+    #[sampler(4)]
+    pub gradients: Option<Handle<Image>>,
 }
 
 impl Material for OceanMaterial {
@@ -36,6 +39,7 @@ impl Default for OceanMaterial {
         Self {
             settings: OceanSettings::default(),
             displacements: None,
+            gradients: None,
         }
     }
 }
@@ -43,17 +47,19 @@ impl Default for OceanMaterial {
 
 #[derive(Debug, Clone, Reflect, ShaderType)]
 pub struct OceanSettings {
-    pub time: f32,
-    pub frequency: f32,
-    pub amplitude: f32,
+    pub displacement_depth_attenuation: f32,
+
+    pub tile_layers: Vec4,
+    pub contribute_layers: Vec4,
 }
 
 impl Default for OceanSettings {
     fn default() -> Self {
         Self {
-            time: 0.0,
-            frequency: 10.0,
-            amplitude: 0.25,
+            displacement_depth_attenuation: 1.0,
+
+            tile_layers: Vec4::new(4.0, 8.0, 64.0, 128.0),
+            contribute_layers: Vec4::new(1.0, 1.0, 1.0, 0.0),
         }
     }
 }
@@ -64,15 +70,13 @@ pub fn prepare_ocean_material(
     mut materials: ResMut<Assets<OceanMaterial>>,
 
     compute_textures: Res<OceanComputeTextures>,
-    time: Res<Time>,
 ) {
     for handle in handles.iter() {
         let mat = materials.get_mut(handle).unwrap();
 
-        mat.settings.time = time.elapsed_seconds();
-        
         if mat.displacements.is_none() {
-            mat.displacements = Some(compute_textures.displacement.clone());
+            mat.displacements = Some(compute_textures.displacements.clone());
+            mat.gradients = Some(compute_textures.gradients.clone());
         }
     }
 }

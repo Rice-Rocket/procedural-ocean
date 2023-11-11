@@ -3,8 +3,10 @@ use bevy_panorbit_camera::PanOrbitCamera;
 
 use crate::ocean::OceanMaterial;
 
-pub const PLANE_LENGTH: f32 = 10.0;
-pub const PLANE_RES: usize = 10;
+pub const PLANE_LENGTH: f32 = 200.0;
+pub const PLANE_RES: usize = 2;
+// pub const PLANE_LENGTH: f32 = 10.0;
+// pub const PLANE_RES: usize = 10;
 
 
 pub fn setup_scene(
@@ -28,6 +30,16 @@ pub fn setup_scene(
         mesh: meshes.add(create_ocean_plane()),
         material: materials.add(OceanMaterial::default()),
         transform: Transform::from_xyz(0.0, 0.0, 0.0),
+        ..default()
+    });
+
+    commands.spawn(DirectionalLightBundle {
+        directional_light: DirectionalLight {
+            color: Color::WHITE,
+            illuminance: 10_000.0,
+            ..default()
+        },
+        transform: Transform::from_rotation(Quat::from_euler(EulerRot::YXZ, 0.0, -std::f32::consts::FRAC_PI_4, 0.0)),
         ..default()
     });
 }
