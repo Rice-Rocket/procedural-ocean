@@ -220,7 +220,7 @@ pub struct SkyPostProcessSettings {
 impl Default for SkyPostProcessSettings {
     fn default() -> Self {
         Self {
-            sun_color: Vec3::new(1.0, 1.0, 1.0),
+            sun_color: Vec3::new(1.0, 0.9, 0.6),
             sun_falloff: 3500.0,
         }
     }

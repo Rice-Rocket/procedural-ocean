@@ -2,12 +2,12 @@ use bevy::{
     prelude::*, 
     render::{
         render_resource::{
-            Extent3d, TextureDimension, TextureFormat, TextureUsages, ShaderType, UniformBuffer
+            Extent3d, TextureDimension, TextureFormat, TextureUsages, ShaderType, UniformBuffer, SamplerDescriptor, FilterMode
         }, 
         renderer::{
             RenderDevice, RenderQueue
         }, 
-        extract_resource::ExtractResource
+        extract_resource::ExtractResource, texture::ImageSampler
     }
 };
 
@@ -46,7 +46,7 @@ impl Default for OceanComputeSettings {
             low_cutoff: 0.0001,
             high_cutoff: 9000.0,
             gravity: 9.81,
-            depth: 20.0,
+            depth: 1.0,
             repeat_time: 200.0,
             frame_time: 1.0,
             lambda: Vec2::new(1.0, 1.0),
@@ -62,26 +62,6 @@ impl Default for OceanComputeSettings {
             foam_add: 0.0,
             foam_decay_rate: 0.0,
         }
-        // Self {
-        //     low_cutoff: 0.0001,
-        //     high_cutoff: 9000.0,
-        //     gravity: 9.81,
-        //     depth: 20.0,
-        //     repeat_time: 200.0,
-        //     frame_time: 1.0,
-        //     lambda: Vec2::new(1.0, 1.0),
-        //     length_scale_0: 256,
-        //     length_scale_1: 256,
-        //     length_scale_2: 256,
-        //     length_scale_3: 256,
-        //     n: TEXTURE_SIZE,
-        //     delta_time: 0.0,
-        //     seed: 0,
-        //     foam_threshold: 0.0,
-        //     foam_bias: 0.0,
-        //     foam_add: 0.0,
-        //     foam_decay_rate: 0.0,
-        // }
     }
 }
 
@@ -101,8 +81,6 @@ pub fn prepare_uniforms(
     let general = uniforms.buf.get_mut();
     *general = general_settings.clone();
 
-    general.low_cutoff = 0.0001;
-    general.high_cutoff = 9000.0;
     general.n = TEXTURE_SIZE;
     general.frame_time = time.elapsed_seconds() * general_settings.frame_time;
     general.delta_time = time.delta_seconds();
@@ -166,8 +144,20 @@ pub fn setup_textures(
     empty_im_rg.texture_descriptor.usage = usage;
     empty_im_rgba_d8.texture_descriptor.usage = usage;
 
-    let displacements = images.add(empty_im_rgba.clone());
-    let gradients = images.add(empty_im_rg);
+    let bilinear_sampler = ImageSampler::Descriptor(SamplerDescriptor {
+        mag_filter: FilterMode::Linear,
+        min_filter: FilterMode::Linear,
+        ..default()
+    });
+
+    let mut displacement_im = empty_im_rgba.clone();
+    let mut gradient_im = empty_im_rg;
+
+    displacement_im.sampler_descriptor = bilinear_sampler.clone();
+    gradient_im.sampler_descriptor = bilinear_sampler;
+
+    let displacements = images.add(displacement_im);
+    let gradients = images.add(gradient_im);
     let init_spectrum_textures = images.add(empty_im_rgba);
     let spectrum_textures = images.add(empty_im_rgba_d8);
 

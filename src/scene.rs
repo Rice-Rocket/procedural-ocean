@@ -12,7 +12,7 @@ pub const PLANE_RES: usize = 2;
 #[derive(Resource)]
 pub struct SkyboxCubemap{
     pub skybox: Handle<Image>,
-    is_loaded: bool,
+    pub is_loaded: bool,
 }
 
 
