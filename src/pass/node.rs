@@ -1,12 +1,18 @@
-use bevy::{prelude::*, render::{render_graph, render_resource::{PipelineCache, ComputePassDescriptor, BindGroupDescriptor, BindGroupEntry, BindingResource}, renderer::RenderContext, render_asset::RenderAssets}};
+use bevy::{prelude::*, render::{render_graph, render_resource::{PipelineCache, ComputePassDescriptor, BindGroupDescriptor, BindGroupEntry, BindingResource}, renderer::RenderContext, render_asset::RenderAssets, extract_resource::ExtractResource}};
 
 use super::{pipeline::OceanComputePipeline, uniforms::{OceanComputeTextures, OceanComputeUniforms}, TEXTURE_SIZE, WORKGROUP_SIZE, spectrums::OceanSpectrumStorage};
 
 
+#[derive(Resource, ExtractResource, Default, Clone, Copy)]
+pub enum OceanInitSpectrumStatus {
+    #[default]
+    Update,
+    Wait,
+}
+
 
 pub struct OceanComputeNode {
-    update_spectrum: bool,
-    // state: SlimeMoldState,
+    update_init_spectrum: bool,
 }
 
 impl OceanComputeNode {
@@ -16,15 +22,31 @@ impl OceanComputeNode {
 impl Default for OceanComputeNode {
     fn default() -> Self {
         Self {
-            update_spectrum: false,
-            // state: SlimeMoldState::Loading,
+            update_init_spectrum: false,
         }
     }
 }
 
 impl render_graph::Node for OceanComputeNode {
-    fn update(&mut self, _world: &mut World) {
-        self.update_spectrum = true;
+    fn update(&mut self, world: &mut World) {
+        let mut status = world.resource_mut::<OceanInitSpectrumStatus>();
+        let trigger = match *status {
+            OceanInitSpectrumStatus::Update => true,
+            OceanInitSpectrumStatus::Wait => false,
+        };
+
+        if trigger && self.update_init_spectrum {
+            *status = OceanInitSpectrumStatus::Wait;
+            self.update_init_spectrum = false;
+            return;
+        }
+
+        if trigger && !self.update_init_spectrum {
+            self.update_init_spectrum = true;
+            return;
+        }
+
+        self.update_init_spectrum = false;
     }
 
     fn run(
@@ -82,7 +104,7 @@ impl render_graph::Node for OceanComputeNode {
 
         let encoder = render_context.command_encoder();
 
-        if self.update_spectrum {
+        if self.update_init_spectrum {
             {
                 let mut pass = encoder.begin_compute_pass(&ComputePassDescriptor::default());
 

@@ -291,6 +291,8 @@ fn butterfly_values(step: u32, idx: u32) -> ButterflyValuesResult {
     let i = (w + idx) % SIZE;
     let theta = -TAU / f32(SIZE) * f32(w);
 
+    // The negative sin(theta) makes it inverse fft
+    // To make it normal fft, make sin(theta) positive
     let twiddle = vec2(cos(theta), -sin(theta));
     let indices = vec2(i, i + b);
     return ButterflyValuesResult(twiddle, indices);

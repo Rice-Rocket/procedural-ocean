@@ -15,7 +15,7 @@ pub mod spectrums;
 use uniforms::*;
 use spectrums::*;
 
-use self::{node::OceanComputeNode, pipeline::OceanComputePipeline, spectrums::{OceanSpectrumsArray, OceanSpectrumStorage}};
+use self::{node::{OceanComputeNode, OceanInitSpectrumStatus}, pipeline::OceanComputePipeline, spectrums::{OceanSpectrumsArray, OceanSpectrumStorage}};
 
 // Should match with workgroup size of horizontal fft and vertical fft and SIZE constant in compute shader
 pub const TEXTURE_SIZE: u32 = 256;
@@ -38,12 +38,15 @@ impl Plugin for OceanComputePlugin {
             .init_resource::<OceanComputeSettings>()
             .init_resource::<OceanSpectrumsArray>()
             .init_resource::<OceanSpectrumsDisplayArray>()
+            .init_resource::<OceanInitSpectrumStatus>()
             .add_systems(Startup, setup_textures)
+            .add_systems(Update, update_init_spectrum_status)
             .add_plugins((
                 ExtractResourcePlugin::<OceanComputeSettings>::default(),
                 ExtractResourcePlugin::<OceanSpectrumsArray>::default(),
                 ExtractResourcePlugin::<OceanSpectrumsDisplayArray>::default(),
                 ExtractResourcePlugin::<OceanComputeTextures>::default(),
+                ExtractResourcePlugin::<OceanInitSpectrumStatus>::default(),
             ));
 
         let render_app = app.sub_app_mut(RenderApp);

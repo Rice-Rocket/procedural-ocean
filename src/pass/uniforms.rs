@@ -11,7 +11,7 @@ use bevy::{
     }
 };
 
-use super::TEXTURE_SIZE;
+use super::{TEXTURE_SIZE, node::OceanInitSpectrumStatus, spectrums::OceanSpectrumsDisplayArray};
 
 
 #[derive(Clone, Resource, ExtractResource, Reflect, ShaderType)]
@@ -108,6 +108,16 @@ pub fn prepare_uniforms(
     general.delta_time = time.delta_seconds();
 
     uniforms.buf.write_buffer(&render_device, &render_queue);
+}
+
+pub fn update_init_spectrum_status(
+    settings: Res<OceanComputeSettings>,
+    spectrum_settings: Res<OceanSpectrumsDisplayArray>,
+    mut init_spectrum_status: ResMut<OceanInitSpectrumStatus>,
+) {
+    if settings.is_changed() || spectrum_settings.is_changed() {
+        *init_spectrum_status = OceanInitSpectrumStatus::Update;
+    }
 }
 
 
