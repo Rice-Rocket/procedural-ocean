@@ -27,5 +27,6 @@ fn main() {
         ))
         .insert_resource(Msaa::Off)
         .add_systems(Startup, setup_scene)
+        .add_systems(Update, skybox_loaded)
         .run();
 }

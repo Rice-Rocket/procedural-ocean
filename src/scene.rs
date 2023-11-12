@@ -1,4 +1,4 @@
-use bevy::{prelude::*, render::{render_resource::PrimitiveTopology, mesh::Indices}, core_pipeline::clear_color::ClearColorConfig};
+use bevy::{prelude::*, render::{render_resource::{PrimitiveTopology, TextureViewDescriptor, TextureViewDimension}, mesh::Indices}, core_pipeline::{clear_color::ClearColorConfig, Skybox}, asset::LoadState};
 use bevy_panorbit_camera::PanOrbitCamera;
 
 use crate::{ocean::OceanMaterial, sky::SkyPostProcessSettings};
@@ -9,11 +9,21 @@ pub const PLANE_RES: usize = 2;
 // pub const PLANE_RES: usize = 10;
 
 
+#[derive(Resource)]
+pub struct SkyboxCubemap{
+    pub skybox: Handle<Image>,
+    is_loaded: bool,
+}
+
+
 pub fn setup_scene(
     mut commands: Commands,
     mut materials: ResMut<Assets<OceanMaterial>>,
     mut meshes: ResMut<Assets<Mesh>>,
+    asset_server: Res<AssetServer>,
 ) {
+    let skybox_handle = asset_server.load("cubemaps/sky.png");
+
     commands.spawn((
         Camera3dBundle {
             camera_3d: Camera3d {
@@ -25,6 +35,7 @@ pub fn setup_scene(
         },
         PanOrbitCamera::default(),
         SkyPostProcessSettings::default(),
+        Skybox(skybox_handle.clone()),
     ));
 
     commands.spawn(MaterialMeshBundle {
@@ -43,6 +54,33 @@ pub fn setup_scene(
         transform: Transform::from_rotation(Quat::from_euler(EulerRot::YXZ, 0.0, -0.1, 0.0)),
         ..default()
     });
+
+    commands.insert_resource(SkyboxCubemap {
+        skybox: skybox_handle,
+        is_loaded: false,
+    });
+}
+
+pub fn skybox_loaded(
+    asset_server: Res<AssetServer>,
+    mut images: ResMut<Assets<Image>>,
+    mut cubemap: ResMut<SkyboxCubemap>,
+    mut skyboxes: Query<&mut Skybox>,
+) {
+    if !cubemap.is_loaded && asset_server.get_load_state(&cubemap.skybox) == LoadState::Loaded {
+        let image = images.get_mut(&cubemap.skybox).unwrap();
+        if image.texture_descriptor.array_layer_count() == 1 {
+            image.reinterpret_stacked_2d_as_array((image.size().y / image.size().x) as u32);
+            image.texture_view_descriptor = Some(TextureViewDescriptor {
+                dimension: Some(TextureViewDimension::Cube),
+                ..default()
+            });
+        }
+        for mut skybox in &mut skyboxes {
+            skybox.0 = cubemap.skybox.clone();
+        }
+        cubemap.is_loaded = true;
+    }
 }
 
 pub fn create_ocean_plane() -> Mesh {
