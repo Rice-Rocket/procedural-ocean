@@ -1,19 +1,12 @@
-use bevy::{prelude::*, render::{render_resource::{PrimitiveTopology, TextureViewDescriptor, TextureViewDimension}, mesh::Indices}, core_pipeline::{clear_color::ClearColorConfig, Skybox}, asset::LoadState};
+use bevy::{prelude::*, render::{render_resource::{PrimitiveTopology, TextureViewDescriptor, TextureViewDimension}, mesh::Indices}, core_pipeline::{clear_color::ClearColorConfig, Skybox, prepass::DepthPrepass}, asset::LoadState};
 use bevy_panorbit_camera::PanOrbitCamera;
 
-use crate::{ocean::OceanMaterial, sky::SkyPostProcessSettings};
+use crate::{ocean::OceanMaterial, sky::{SkyPostProcessSettings, SkyboxCubemap}};
 
 pub const PLANE_LENGTH: f32 = 200.0;
 pub const PLANE_RES: usize = 2;
 // pub const PLANE_LENGTH: f32 = 10.0;
 // pub const PLANE_RES: usize = 10;
-
-
-#[derive(Resource)]
-pub struct SkyboxCubemap{
-    pub skybox: Handle<Image>,
-    pub is_loaded: bool,
-}
 
 
 pub fn setup_scene(
@@ -35,7 +28,19 @@ pub fn setup_scene(
         },
         PanOrbitCamera::default(),
         SkyPostProcessSettings::default(),
-        Skybox(skybox_handle.clone()),
+        DepthPrepass,
+        // Skybox(skybox_handle.clone()),
+        // FogSettings {
+        //     color: Color::rgba(0.25, 0.25, 0.25, 1.0),
+        //     directional_light_color: Color::rgba(0.25, 0.25, 0.25, 1.0),
+        //     directional_light_exponent: 8.0,
+        //     falloff: FogFalloff::Exponential { density: 0.07 },
+        //     // falloff: FogFalloff::from_visibility_colors(
+        //     //     1.0,
+        //     //     Color::rgb(0.45, 0.5, 0.6),
+        //     //     Color::rgb(0.9, 0.95, 1.0),
+        //     // ),
+        // },
     ));
 
     commands.spawn(MaterialMeshBundle {

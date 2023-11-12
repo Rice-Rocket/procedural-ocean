@@ -1,5 +1,5 @@
 use bevy::{
-    core_pipeline::{fullscreen_vertex_shader::fullscreen_shader_vertex_state, core_3d},
+    core_pipeline::{fullscreen_vertex_shader::fullscreen_shader_vertex_state, core_3d, prepass::ViewPrepassTextures},
     prelude::*,
     render::{
         extract_component::{ComponentUniforms, ExtractComponent, ExtractComponentPlugin, UniformComponentPlugin},
@@ -10,11 +10,11 @@ use bevy::{
             ColorTargetState, ColorWrites, FragmentState, MultisampleState, Operations,
             PipelineCache, PrimitiveState, RenderPassColorAttachment, RenderPassDescriptor,
             RenderPipelineDescriptor, Sampler, SamplerBindingType, SamplerDescriptor, ShaderStages,
-            ShaderType, TextureFormat, TextureSampleType, TextureViewDimension, BufferBindingType,
+            ShaderType, TextureFormat, TextureSampleType, TextureViewDimension, BufferBindingType, TextureAspect, TextureViewDescriptor,
         },
         renderer::{RenderContext, RenderDevice},
         texture::BevyDefault,
-        view::{ViewTarget, ViewUniforms, ViewUniform, ViewUniformOffset}, RenderApp
+        view::{ViewTarget, ViewUniforms, ViewUniform, ViewUniformOffset}, RenderApp, extract_resource::{ExtractResource, ExtractResourcePlugin}, render_asset::RenderAssets
     },
     ecs::query::QueryItem, pbr::{GpuLights, LightMeta, ViewLightsUniformOffset},
 };
@@ -29,6 +29,7 @@ impl SkyPassPostProcessNode {
 impl ViewNode for SkyPassPostProcessNode {
     type ViewQuery = (
         &'static ViewTarget, 
+        &'static ViewPrepassTextures,
         bevy::ecs::system::lifetimeless::Read<ViewUniformOffset>,
         bevy::ecs::system::lifetimeless::Read<ViewLightsUniformOffset>
     );
@@ -52,6 +53,16 @@ impl ViewNode for SkyPassPostProcessNode {
         let Some(settings_binding) = settings_uniforms.uniforms().binding() else {
             return Ok(());
         };
+
+        let gpu_images = world.resource::<RenderAssets<Image>>();
+        let skybox = world.resource::<SkyboxCubemap>();
+        if !skybox.is_loaded { return Ok(()) };
+        let skybox_view = &gpu_images[&skybox.skybox];
+
+        let Some(depth_view) = view_target.1.depth.as_ref().map(|texture| texture.texture.create_view(&TextureViewDescriptor {
+            aspect: TextureAspect::DepthOnly,
+            ..default()
+        })) else { return Ok(()); };
 
         let Some(view_binding) = world.resource::<ViewUniforms>().uniforms.binding() else {
             return Ok(());
@@ -89,6 +100,14 @@ impl ViewNode for SkyPassPostProcessNode {
                         binding: 4,
                         resource: lights_binding.clone(),
                     },
+                    BindGroupEntry {
+                        binding: 5,
+                        resource: BindingResource::TextureView(&skybox_view.texture_view),
+                    },
+                    BindGroupEntry {
+                        binding: 6,
+                        resource: BindingResource::TextureView(&depth_view),
+                    },
                 ],
             });
 
@@ -103,7 +122,7 @@ impl ViewNode for SkyPassPostProcessNode {
         });
 
         render_pass.set_render_pipeline(pipeline);
-        render_pass.set_bind_group(0, &bind_group, &[view_target.1.offset, view_target.2.offset]);
+        render_pass.set_bind_group(0, &bind_group, &[view_target.2.offset, view_target.3.offset]);
         render_pass.draw(0..3, 0..1);
 
         Ok(())
@@ -170,6 +189,26 @@ impl FromWorld for SkyPassPostProcessPipeline {
                     },
                     count: None,
                 },
+                BindGroupLayoutEntry {
+                    binding: 5,
+                    visibility: ShaderStages::FRAGMENT,
+                    ty: BindingType::Texture {
+                        sample_type: TextureSampleType::Float { filterable: true },
+                        view_dimension: TextureViewDimension::Cube,
+                        multisampled: false,
+                    },
+                    count: None,
+                },
+                BindGroupLayoutEntry {
+                    binding: 6,
+                    visibility: ShaderStages::FRAGMENT,
+                    ty: BindingType::Texture {
+                        sample_type: TextureSampleType::Depth,
+                        view_dimension: TextureViewDimension::D2,
+                        multisampled: false,
+                    },
+                    count: None,
+                },
             ],
         });
 
@@ -215,6 +254,12 @@ impl FromWorld for SkyPassPostProcessPipeline {
 pub struct SkyPostProcessSettings {
     pub sun_color: Vec3,
     pub sun_falloff: f32,
+    pub fog_color: Vec3,
+    pub fog_density: f32,
+    pub fog_offset: f32,
+    pub fog_height: f32,
+    pub fog_attenuation: f32,
+    pub skybox_speed: f32,
 }
 
 impl Default for SkyPostProcessSettings {
@@ -222,8 +267,20 @@ impl Default for SkyPostProcessSettings {
         Self {
             sun_color: Vec3::new(1.0, 0.9, 0.6),
             sun_falloff: 3500.0,
+            fog_color: Vec3::new(1.0, 1.0, 1.0),
+            fog_density: 0.7,
+            fog_offset: 0.1,
+            fog_height: 0.1,
+            fog_attenuation: 0.1,
+            skybox_speed: 0.1,
         }
     }
+}
+
+#[derive(Resource, ExtractResource, Clone)]
+pub struct SkyboxCubemap {
+    pub skybox: Handle<Image>,
+    pub is_loaded: bool,
 }
 
 pub struct SkyPostProcessPlugin;
@@ -233,6 +290,7 @@ impl Plugin for SkyPostProcessPlugin {
         app.add_plugins((
             ExtractComponentPlugin::<SkyPostProcessSettings>::default(),
             UniformComponentPlugin::<SkyPostProcessSettings>::default(),
+            ExtractResourcePlugin::<SkyboxCubemap>::default(),
         ));
 
         let Ok(render_app) = app.get_sub_app_mut(RenderApp) else {
@@ -247,9 +305,9 @@ impl Plugin for SkyPostProcessPlugin {
             .add_render_graph_edges(
                 core_3d::graph::NAME,
                 &[
-                    core_3d::graph::node::TONEMAPPING,
+                    core_3d::graph::node::MAIN_OPAQUE_PASS,
                     SkyPassPostProcessNode::NAME,
-                    core_3d::graph::node::END_MAIN_PASS_POST_PROCESSING,
+                    core_3d::graph::node::MAIN_TRANSPARENT_PASS,
                 ],
             );
     }

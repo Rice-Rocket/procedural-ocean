@@ -46,7 +46,7 @@ impl Default for OceanComputeSettings {
             low_cutoff: 0.0001,
             high_cutoff: 9000.0,
             gravity: 9.81,
-            depth: 1.0,
+            depth: 0.1,
             repeat_time: 200.0,
             frame_time: 1.0,
             lambda: Vec2::new(1.0, 1.0),

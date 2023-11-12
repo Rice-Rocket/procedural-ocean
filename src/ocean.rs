@@ -1,6 +1,6 @@
 use bevy::{prelude::*, reflect::TypeUuid, render::render_resource::{AsBindGroup, ShaderType}, asset::load_internal_asset};
 
-use crate::{compute::uniforms::OceanComputeTextures, scene::SkyboxCubemap, sky::SkyPostProcessSettings};
+use crate::{compute::uniforms::OceanComputeTextures, sky::{SkyPostProcessSettings, SkyboxCubemap}};
 
 
 pub const OCEAN_MATERIAL_HANDLE: HandleUntyped = 
@@ -35,8 +35,26 @@ impl Material for OceanMaterial {
     fn vertex_shader() -> bevy::render::render_resource::ShaderRef {
         "shaders/ocean.wgsl".into()
     }
+    fn prepass_fragment_shader() -> bevy::render::render_resource::ShaderRef {
+        "shaders/prepass.wgsl".into()
+    }
+    fn prepass_vertex_shader() -> bevy::render::render_resource::ShaderRef {
+        "shaders/prepass.wgsl".into()
+    }
     fn alpha_mode(&self) -> AlphaMode {
         AlphaMode::Opaque
+    }
+    fn specialize(
+            _pipeline: &bevy::pbr::MaterialPipeline<Self>,
+            descriptor: &mut bevy::render::render_resource::RenderPipelineDescriptor,
+            _layout: &bevy::render::mesh::MeshVertexBufferLayout,
+            _key: bevy::pbr::MaterialPipelineKey<Self>,
+        ) -> Result<(), bevy::render::render_resource::SpecializedMeshPipelineError> {
+        descriptor.vertex.shader_defs.push("DEPTH_CLAMP_ORTHO".into());
+        if let Some(fragment) = descriptor.fragment.as_mut() {
+            fragment.shader_defs.push("DEPTH_CLAMP_ORTHO".into());
+        }
+        Ok(())
     }
 }
 

@@ -137,17 +137,22 @@ fn get_sky_color(dir: vec3<f32>, sun_dir: vec3<f32>) -> vec3<f32> {
 fn get_ocean_color(p: vec3<f32>, n: vec3<f32>, sun_dir: vec3<f32>, dir: vec3<f32>, mu: f32) -> vec3<f32> {
     let l = normalize(reflect(dir, n));
     let v = -dir;
+
     let n_dot_v = saturate(abs(dot(n, v)) + 0.00001);
     var n_dot_l = max(0.0, dot(n, l));
     let v_dot_h = max(0.0, dot(v, normalize(v + l)));
+
     let fresnel = schlick(0.02, n_dot_v);
     let reflection = get_sky_color(l, sun_dir);
     var color = mix(settings.base_color, reflection, fresnel);
+
     let subsurface = settings.subsurface_strength * henyey_greenstein(mu, 0.5);
     color += subsurface * settings.sea_water_color * max(0.0, 1.0 + p.y - 0.6 * settings.ocean_depth);
+
     let h = normalize(v + sun_dir);
     n_dot_l = max(0.0, dot(n, sun_dir));
     color += settings.low_scatter * 0.4 * vec3(n_dot_l / PI * fresnel * sky_settings.sun_color * settings.sun_power * d_ggx(settings.roughness, max(0.0, dot(n, h)), h));
+
     return color;
 }
 
