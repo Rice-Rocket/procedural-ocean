@@ -268,10 +268,10 @@ impl Default for SkyPostProcessSettings {
             sun_color: Vec3::new(1.0, 0.9, 0.6),
             sun_falloff: 3500.0,
             fog_color: Vec3::new(1.0, 1.0, 1.0),
-            fog_density: 0.7,
+            fog_density: 0.01,
             fog_offset: 0.1,
-            fog_height: 0.1,
-            fog_attenuation: 0.1,
+            fog_height: 100.0,
+            fog_attenuation: 1.25,
             skybox_speed: 0.1,
         }
     }

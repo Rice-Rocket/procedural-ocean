@@ -32,16 +32,18 @@ struct SkySettings {
     skybox_speed: f32,
 }
 
-fn linearize_depth(depth: f32) -> f32 {
+fn linearize_depth_01(depth: f32) -> f32 {
     let far_plane = 1000.0 - 0.1;
     return mix(1.0, view.projection[3][2] / depth / far_plane, f32(depth > 0.0001));
-    // return view.projection[3][2] / depth;
+}
+
+fn linearize_depth(depth: f32) -> f32 {
+    return view.projection[3][2] / depth;
 }
 
 fn get_sky_color(dir: vec3<f32>, sun_dir: vec3<f32>) -> vec3<f32> {
     let sky = textureSample(skybox_texture, texture_sampler, dir).xyz;
-    let sun = settings.sun_color * pow(saturate(dot(dir, sun_dir)), settings.sun_falloff);
-    return sky + sun;
+    return sky;
 }
 
 @fragment
@@ -60,5 +62,21 @@ fn fragment(in: FullscreenVertexOutput) -> @location(0) vec4<f32> {
         color = vec4(get_sky_color(view_dir, to_light), 1.0);
     }
 
-    return vec4(color);
+    var view_dist = linearize_depth(depth);
+    if (depth < 0.0001) {
+        view_dist = 1000.0;
+    }
+    
+    let world_pos = view.world_position.xyz + view_dir * view_dist;
+    var height = min(settings.fog_height, world_pos.y) / settings.fog_height;
+    height = pow(saturate(height), 1.0 / settings.fog_attenuation);
+
+    var fog_factor = (settings.fog_density / sqrt(log(2.0))) * max(0.0, view_dist - settings.fog_offset);
+    fog_factor = exp2(-fog_factor * fog_factor);
+
+    let sun = settings.sun_color * pow(saturate(dot(view_dir, to_light)), settings.sun_falloff);
+    
+    let output = mix(settings.fog_color, color.rgb, saturate(height + fog_factor));
+
+    return vec4(output + sun, 1.0);
 }

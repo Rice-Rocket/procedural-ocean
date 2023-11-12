@@ -23,7 +23,8 @@ pub fn setup_scene(
                 clear_color: ClearColorConfig::Custom(Color::BLACK),
                 ..default()
             },
-            transform: Transform::from_xyz(4.0, 2.0, 4.0).looking_at(Vec3::ZERO, Vec3::Y),
+            transform: Transform::from_xyz(-10.0, 5.0, -100.0)
+                .with_rotation(Quat::from_euler(EulerRot::YXZ, -std::f32::consts::PI, 0.0, std::f32::consts::PI)),
             ..default()
         },
         PanOrbitCamera::default(),

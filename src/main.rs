@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 use bevy_panorbit_camera::PanOrbitCameraPlugin;
-use bevy_inspector_egui::quick::{AssetInspectorPlugin, ResourceInspectorPlugin};
+use bevy_inspector_egui::quick::{AssetInspectorPlugin, ResourceInspectorPlugin, FilterQueryInspectorPlugin};
 
 pub mod scene;
 pub mod ocean;
@@ -24,6 +24,7 @@ fn main() {
             AssetInspectorPlugin::<OceanMaterial>::default(),
             ResourceInspectorPlugin::<OceanComputeSettings>::default(),
             ResourceInspectorPlugin::<OceanSpectrumsDisplayArray>::default(),
+            FilterQueryInspectorPlugin::<With<SkyPostProcessSettings>>::default(),
         ))
         .insert_resource(Msaa::Off)
         .add_systems(Startup, setup_scene)
