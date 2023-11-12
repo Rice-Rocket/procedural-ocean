@@ -1,3 +1,5 @@
+#define_import_path ocean::main
+
 #import bevy_pbr::mesh_functions as mesh_functions
 #import bevy_pbr::skinning
 #import bevy_pbr::morph
@@ -5,6 +7,7 @@
 #import bevy_pbr::mesh_vertex_output  MeshVertexOutput
 #import bevy_pbr::mesh_view_bindings as view_bindings
 #import bevy_pbr::mesh_view_types
+#import bevy_pbr::prepass_utils as prepass_utils
 
 struct Vertex {
 #ifdef VERTEX_POSITIONS
@@ -78,38 +81,22 @@ fn vertex(vertex: Vertex) -> MeshVertexOutput {
     #endif
 
     let position = vertex.position + displacement.xyz;
-    // let position = vertex.position + (vec4(displacement, 1.0) * mesh.inverse_transpose_model).xyz;
 
     var out: MeshVertexOutput;
 
-    #ifdef VERTEX_NORMALS
-    #ifdef SKINNED
-        out.world_normal = bevy_pbr::skinning::skin_normals(model, vertex.normal);
-    #else
-        out.world_normal = mesh_functions::mesh_normal_local_to_world(vertex.normal);
-    #endif
-    #endif
+    out.world_position = mesh_functions::mesh_position_local_to_world(model, vec4<f32>(position, 1.0));
+    out.position = mesh_functions::mesh_position_world_to_clip(out.world_position);
 
-    #ifdef VERTEX_POSITIONS
-        out.world_position = mesh_functions::mesh_position_local_to_world(model, vec4<f32>(position, 1.0));
-        out.position = mesh_functions::mesh_position_world_to_clip(out.world_position);
-    #endif
-
-    #ifdef VERTEX_UVS
-        out.uv = vertex.uv;
-    #endif
-
-    #ifdef VERTEX_TANGENTS
-        out.world_tangent = mesh_functions::mesh_tangent_local_to_world(model, vertex.tangent);
-    #endif
-
-    #ifdef VERTEX_COLORS
-        out.color = vertex.color;
-    #endif
+    out.uv = vertex.uv;
 
     return out;
 }
 
+fn linearize_depth(depth: f32) -> f32 {
+    let far_plane = 1000.0 - 0.1;
+    return mix(1.0, view_bindings::view.projection[3][2] / depth / far_plane, f32(depth > 0.0001));
+    // return view_bindings::view.projection[3][2] / depth;
+}
 
 @fragment
 fn fragment(in: MeshVertexOutput) -> @location(0) vec4<f32> {
@@ -131,6 +118,8 @@ fn fragment(in: MeshVertexOutput) -> @location(0) vec4<f32> {
     var normal = vec3(-gradient.x, 1.0, -gradient.y);
 
     let diffuse = saturate(dot(normal, to_light));
+
+    let scene_depth = linearize_depth(in.position.z);
 
     return vec4(vec3(diffuse), 1.0);
 }

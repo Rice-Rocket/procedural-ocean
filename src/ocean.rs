@@ -1,6 +1,6 @@
 use bevy::{prelude::*, reflect::TypeUuid, render::render_resource::{AsBindGroup, ShaderType}, asset::load_internal_asset};
 
-use crate::pass::uniforms::OceanComputeTextures;
+use crate::compute::uniforms::OceanComputeTextures;
 
 
 pub const OCEAN_MATERIAL_HANDLE: HandleUntyped = 

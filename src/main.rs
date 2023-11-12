@@ -4,11 +4,13 @@ use bevy_inspector_egui::quick::{AssetInspectorPlugin, ResourceInspectorPlugin};
 
 pub mod scene;
 pub mod ocean;
-pub mod pass;
+pub mod compute;
+pub mod sky;
 
 use scene::*;
 use ocean::*;
-use pass::{*, uniforms::OceanComputeSettings, spectrums::OceanSpectrumsDisplayArray};
+use compute::{*, uniforms::OceanComputeSettings, spectrums::OceanSpectrumsDisplayArray};
+use sky::*;
 
 
 fn main() {
@@ -18,10 +20,12 @@ fn main() {
             PanOrbitCameraPlugin,
             OceanMaterialPlugin,
             OceanComputePlugin,
+            SkyPostProcessPlugin,
             AssetInspectorPlugin::<OceanMaterial>::default(),
             ResourceInspectorPlugin::<OceanComputeSettings>::default(),
             ResourceInspectorPlugin::<OceanSpectrumsDisplayArray>::default(),
         ))
+        .insert_resource(Msaa::Off)
         .add_systems(Startup, setup_scene)
         .run();
 }

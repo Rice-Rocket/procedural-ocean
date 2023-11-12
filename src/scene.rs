@@ -1,7 +1,7 @@
 use bevy::{prelude::*, render::{render_resource::PrimitiveTopology, mesh::Indices}, core_pipeline::clear_color::ClearColorConfig};
 use bevy_panorbit_camera::PanOrbitCamera;
 
-use crate::ocean::OceanMaterial;
+use crate::{ocean::OceanMaterial, sky::SkyPostProcessSettings};
 
 pub const PLANE_LENGTH: f32 = 200.0;
 pub const PLANE_RES: usize = 2;
@@ -17,13 +17,14 @@ pub fn setup_scene(
     commands.spawn((
         Camera3dBundle {
             camera_3d: Camera3d {
-                clear_color: ClearColorConfig::Custom(Color::rgb(0.15, 0.15, 0.17)),
+                clear_color: ClearColorConfig::Custom(Color::BLACK),
                 ..default()
             },
             transform: Transform::from_xyz(4.0, 2.0, 4.0).looking_at(Vec3::ZERO, Vec3::Y),
             ..default()
         },
         PanOrbitCamera::default(),
+        SkyPostProcessSettings::default(),
     ));
 
     commands.spawn(MaterialMeshBundle {
@@ -36,10 +37,10 @@ pub fn setup_scene(
     commands.spawn(DirectionalLightBundle {
         directional_light: DirectionalLight {
             color: Color::WHITE,
-            illuminance: 10_000.0,
+            illuminance: 20_000.0,
             ..default()
         },
-        transform: Transform::from_rotation(Quat::from_euler(EulerRot::YXZ, 0.0, -std::f32::consts::FRAC_PI_4, 0.0)),
+        transform: Transform::from_rotation(Quat::from_euler(EulerRot::YXZ, 0.0, -0.1, 0.0)),
         ..default()
     });
 }
