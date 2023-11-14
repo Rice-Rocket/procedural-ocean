@@ -23,6 +23,7 @@ pub struct OceanComputeSettings {
     pub gravity: f32,
     pub repeat_time: f32,
     pub n: u32,
+    pub compute_layers: u32,
     pub seed: u32,
     pub length_scale_0: u32,
     pub length_scale_1: u32,
@@ -55,12 +56,13 @@ impl Default for OceanComputeSettings {
             length_scale_2: 32,
             length_scale_3: 16,
             n: TEXTURE_SIZE,
+            compute_layers: 3,
             delta_time: 0.0,
             seed: 0,
-            foam_threshold: 0.0,
-            foam_bias: 0.0,
-            foam_add: 0.0,
-            foam_decay_rate: 0.0,
+            foam_threshold: 0.1,
+            foam_bias: 1.075,
+            foam_add: 0.05,
+            foam_decay_rate: 0.0075,
         }
     }
 }

@@ -24,17 +24,12 @@ const PI: f32 = 3.1415927;
 struct SkySettings {
     sun_color: vec3<f32>,
     sun_falloff: f32,
+
     fog_color: vec3<f32>,
     fog_density: f32,
     fog_offset: f32,
     fog_height: f32,
     fog_attenuation: f32,
-    skybox_speed: f32,
-}
-
-fn linearize_depth_01(depth: f32) -> f32 {
-    let far_plane = 1000.0 - 0.1;
-    return mix(1.0, view.projection[3][2] / depth / far_plane, f32(depth > 0.0001));
 }
 
 fn linearize_depth(depth: f32) -> f32 {

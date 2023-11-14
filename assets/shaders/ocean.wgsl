@@ -8,6 +8,7 @@
 #import bevy_pbr::mesh_view_bindings as view_bindings
 #import bevy_pbr::mesh_view_types
 #import bevy_pbr::prepass_utils as prepass_utils
+#import ocean::sky SkySettings
 
 struct Vertex {
 #ifdef VERTEX_POSITIONS
@@ -63,14 +64,17 @@ struct OceanSettings {
     ocean_depth: f32,
     subsurface_strength: f32,
 
+    foam_subtract: f32,
+    foam_color: vec3<f32>,
+
     tile_layers: vec4<f32>,
     contribute_layers: vec4<f32>,
 }
 
-struct SkySettings {
-    sun_color: vec3<f32>,
-    sun_falloff: f32,
-}
+// struct SkySettings {
+//     sun_color: vec3<f32>,
+//     sun_falloff: f32,
+// }
 
 
 @vertex
@@ -82,11 +86,16 @@ fn vertex(vertex: Vertex) -> MeshVertexOutput {
     let uv3 = fract((uv - 1.125) * settings.tile_layers.z);
     let uv4 = fract((uv - 1.25) * settings.tile_layers.w);
 
-    let displacement_1 = textureSampleLevel(displacement_textures, displacement_sampler, uv1, 0, 0.0) * settings.contribute_layers.x; 
-    let displacement_2 = textureSampleLevel(displacement_textures, displacement_sampler, uv2, 1, 0.0) * settings.contribute_layers.y; 
-    let displacement_3 = textureSampleLevel(displacement_textures, displacement_sampler, uv3, 2, 0.0) * settings.contribute_layers.z; 
-    let displacement_4 = textureSampleLevel(displacement_textures, displacement_sampler, uv4, 3, 0.0) * settings.contribute_layers.w; 
-    let displacement = displacement_1.xyz + displacement_2.xyz + displacement_3.xyz + displacement_4.xyz;
+    var displacement_1 = textureSampleLevel(displacement_textures, displacement_sampler, uv1, 0, 0.0); 
+    var displacement_2 = textureSampleLevel(displacement_textures, displacement_sampler, uv2, 1, 0.0); 
+    var displacement_3 = textureSampleLevel(displacement_textures, displacement_sampler, uv3, 2, 0.0); 
+    var displacement_4 = textureSampleLevel(displacement_textures, displacement_sampler, uv4, 3, 0.0); 
+    displacement_1 = vec4(displacement_1.rgb * settings.contribute_layers.x, displacement_1.a);
+    displacement_2 = vec4(displacement_2.rgb * settings.contribute_layers.y, displacement_2.a);
+    displacement_3 = vec4(displacement_3.rgb * settings.contribute_layers.z, displacement_3.a);
+    displacement_4 = vec4(displacement_4.rgb * settings.contribute_layers.w, displacement_4.a);
+    var displacement = displacement_1 + displacement_2 + displacement_3 + displacement_4;
+    displacement.a += settings.foam_subtract;
 
     #ifdef SKINNED
         var model = bevy_pbr::skinning::skin_model(vertex.joint_indices, vertex.joint_weights);
@@ -102,6 +111,7 @@ fn vertex(vertex: Vertex) -> MeshVertexOutput {
     out.position = mesh_functions::mesh_position_world_to_clip(out.world_position);
 
     out.uv = vertex.uv;
+    out.world_normal = vec3(displacement.a);
 
     return out;
 }
@@ -134,7 +144,7 @@ fn get_sky_color(dir: vec3<f32>, sun_dir: vec3<f32>) -> vec3<f32> {
     return sky + sun;
 }
 
-fn get_ocean_color(p: vec3<f32>, n: vec3<f32>, sun_dir: vec3<f32>, dir: vec3<f32>, mu: f32) -> vec3<f32> {
+fn get_ocean_color(p: vec3<f32>, n: vec3<f32>, sun_dir: vec3<f32>, dir: vec3<f32>, mu: f32, foam: f32) -> vec3<f32> {
     let l = normalize(reflect(dir, n));
     let v = -dir;
 
@@ -144,7 +154,7 @@ fn get_ocean_color(p: vec3<f32>, n: vec3<f32>, sun_dir: vec3<f32>, dir: vec3<f32
 
     let fresnel = schlick(0.02, n_dot_v);
     let reflection = get_sky_color(l, sun_dir);
-    var color = mix(settings.base_color, reflection, fresnel);
+    var color = mix(mix(settings.base_color, settings.foam_color, foam), reflection, fresnel);
 
     let subsurface = settings.subsurface_strength * henyey_greenstein(mu, 0.5);
     color += subsurface * settings.sea_water_color * max(0.0, 1.0 + p.y - 0.6 * settings.ocean_depth);
@@ -175,6 +185,9 @@ fn fragment(in: MeshVertexOutput) -> @location(0) vec4<f32> {
 
     let scene_depth = linearize_depth(in.position.z);
 
+    var foam = in.world_normal.x;
+    // foam = mix(0.0, saturate(foam), pow())
+
     let macro_normal = vec3(0.0, 1.0, 0.0);
     let normal = normalize(vec3(-gradient.x, 1.0, -gradient.y));
 
@@ -183,7 +196,7 @@ fn fragment(in: MeshVertexOutput) -> @location(0) vec4<f32> {
     var dir = normalize(in.world_position.xyz - view_bindings::view.world_position.xyz);
 
     let mu = dot(to_light, dir);
-    let color = get_ocean_color(in.world_position.xyz, normal, to_light, dir, mu);
+    let color = get_ocean_color(in.world_position.xyz, normal, to_light, dir, mu, saturate(foam));
 
     return vec4(color, 1.0);
 }

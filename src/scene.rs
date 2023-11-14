@@ -15,7 +15,7 @@ pub fn setup_scene(
     mut meshes: ResMut<Assets<Mesh>>,
     asset_server: Res<AssetServer>,
 ) {
-    let skybox_handle = asset_server.load("cubemaps/sky.png");
+    let skybox_handle = asset_server.load("cubemaps/cloudy.png");
 
     commands.spawn((
         Camera3dBundle {
@@ -30,18 +30,6 @@ pub fn setup_scene(
         PanOrbitCamera::default(),
         SkyPostProcessSettings::default(),
         DepthPrepass,
-        // Skybox(skybox_handle.clone()),
-        // FogSettings {
-        //     color: Color::rgba(0.25, 0.25, 0.25, 1.0),
-        //     directional_light_color: Color::rgba(0.25, 0.25, 0.25, 1.0),
-        //     directional_light_exponent: 8.0,
-        //     falloff: FogFalloff::Exponential { density: 0.07 },
-        //     // falloff: FogFalloff::from_visibility_colors(
-        //     //     1.0,
-        //     //     Color::rgb(0.45, 0.5, 0.6),
-        //     //     Color::rgb(0.9, 0.95, 1.0),
-        //     // ),
-        // },
     ));
 
     commands.spawn(MaterialMeshBundle {

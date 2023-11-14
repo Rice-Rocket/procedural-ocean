@@ -18,6 +18,7 @@ struct OceanSettings {
     gravity: f32,
     repeat_time: f32,
     n: u32,
+    compute_layers: u32,
     seed: u32,
     length_scale_0: u32,
     length_scale_1: u32,
@@ -170,7 +171,7 @@ fn initialize_spectrum(@builtin(global_invocation_id) id: vec3<u32>) {
 
     let length_scales = vec4<u32>(settings.length_scale_0, settings.length_scale_1, settings.length_scale_2, settings.length_scale_3);
 
-    for (var i = 0u; i < 4u; i++) {
+    for (var i = 0u; i < settings.compute_layers; i++) {
         let delta_k = TAU / f32(length_scales[i]);
         let k = (location - half_n) * delta_k;
         let k_length = length(k);
@@ -206,7 +207,7 @@ fn initialize_spectrum(@builtin(global_invocation_id) id: vec3<u32>) {
 fn pack_spectrum_conjugates(@builtin(global_invocation_id) id: vec3<u32>) {
     let loc = vec2<i32>(id.xy);
     let n = i32(settings.n);
-    for (var i = 0u; i < 4u; i++) {
+    for (var i = 0u; i < settings.compute_layers; i++) {
         let h0 = textureLoad(init_spectrum_textures, id.xy, i).xy;
         let conj_pos = vec2((n - loc.x) % n, (n - loc.y) % n);
         let conj = textureLoad(init_spectrum_textures, conj_pos, i).xy;
@@ -222,7 +223,7 @@ fn update_spectrum(@builtin(global_invocation_id) id: vec3<u32>) {
     let half_n = f32(settings.n) / 2.0;
     let location = vec2<f32>(id.xy);
 
-    for (var i = 0u; i < 4u; i++) {
+    for (var i = 0u; i < settings.compute_layers; i++) {
         let init_signal = textureLoad(init_spectrum_textures, id.xy, i);
         let h0 = init_signal.xy;
         let h0_conj = init_signal.zw;
@@ -324,7 +325,7 @@ fn fft(thread_idx: u32, input: vec4<f32>) -> vec4<f32> {
 @compute @workgroup_size(256, 1, 1)
 // @compute @workgroup_size(1024, 1, 1)
 fn horizontal_fft(@builtin(global_invocation_id) id: vec3<u32>) {
-    for (var i = 0u; i < 8u; i++) {
+    for (var i = 0u; i < settings.compute_layers * 2u; i++) {
         let old = textureLoad(spectrum_textures, id.xy, i);
         textureStore(spectrum_textures, id.xy, i, fft(id.x, old));
     }
@@ -333,7 +334,7 @@ fn horizontal_fft(@builtin(global_invocation_id) id: vec3<u32>) {
 @compute @workgroup_size(256, 1, 1)
 // @compute @workgroup_size(1024, 1, 1)
 fn vertical_fft(@builtin(global_invocation_id) id: vec3<u32>) {
-    for (var i = 0u; i < 8u; i++) {
+    for (var i = 0u; i < settings.compute_layers * 2u; i++) {
         let old = textureLoad(spectrum_textures, id.yx, i);
         textureStore(spectrum_textures, id.yx, i, fft(id.x, old));
     }
@@ -346,7 +347,7 @@ fn permute(data: vec4<f32>, id: vec2<f32>) -> vec4<f32> {
 
 @compute @workgroup_size(8, 8, 1)
 fn assemble_maps(@builtin(global_invocation_id) id: vec3<u32>) {
-    for (var i = 0u; i < 4u; i++) {
+    for (var i = 0u; i < settings.compute_layers; i++) {
         let h_tilde_displacement = permute(textureLoad(spectrum_textures, id.xy, i * 2u), vec2<f32>(id.xy));
         let h_tilde_slope = permute(textureLoad(spectrum_textures, id.xy, i * 2u + 1u), vec2<f32>(id.xy));
 
@@ -362,8 +363,18 @@ fn assemble_maps(@builtin(global_invocation_id) id: vec3<u32>) {
         let gradients = dyxdyz.xy / (1.0 + abs(dxxdzz * settings.lambda));
         let covariance = gradients.x * gradients.y;
 
+        var foam = textureLoad(displacement_textures, id.xy, i).a;
+        foam *= exp(-settings.foam_decay_rate);
+        foam = saturate(foam);
+
+        let biased_jacobian = max(0.0, -(jacobian - settings.foam_bias));
+
+        if (biased_jacobian > settings.foam_threshold) {
+            foam += settings.foam_add * biased_jacobian;
+        }
+
         // storageBarrier();
-        textureStore(displacement_textures, id.xy, i, vec4(displacement, 1.0));
+        textureStore(displacement_textures, id.xy, i, vec4(displacement, foam));
         textureStore(gradient_textures, id.xy, i, vec4(gradients, 0.0, 0.0));
     }
 }

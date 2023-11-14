@@ -83,6 +83,9 @@ pub struct OceanSettings {
     pub ocean_depth: f32,
     pub subsurface_strength: f32,
 
+    pub foam_subtract: f32,
+    pub foam_color: Vec3,
+    
     pub tile_layers: Vec4,
     pub contribute_layers: Vec4,
 }
@@ -93,12 +96,15 @@ impl Default for OceanSettings {
             base_color: Vec3::new(0.1, 0.21, 0.35),
             displacement_depth_attenuation: 1.0,
             low_scatter: Vec3::new(1.0, 0.7, 0.5),
-            normal_strength: 0.5,
+            normal_strength: 0.8,
             sea_water_color: Vec3::new(0.8, 0.9, 0.6) * 0.6,
             roughness: 0.3,
             sun_power: 50.0,
             ocean_depth: 0.6,
             subsurface_strength: 0.6,
+
+            foam_subtract: -0.84,
+            foam_color: Vec3::new(1.0, 1.0, 1.0),
 
             tile_layers: Vec4::new(4.0, 8.0, 64.0, 128.0),
             contribute_layers: Vec4::new(1.0, 1.0, 1.0, 0.0),
@@ -111,6 +117,7 @@ pub fn prepare_ocean_material(
     handles: Query<&Handle<OceanMaterial>>,
     mut materials: ResMut<Assets<OceanMaterial>>,
     skybox: Res<SkyboxCubemap>,
+    sky_settings: Query<&SkyPostProcessSettings>,
 
     compute_textures: Res<OceanComputeTextures>,
 ) {
@@ -124,6 +131,15 @@ pub fn prepare_ocean_material(
 
         if mat.skybox.is_none() && skybox.is_loaded {
             mat.skybox = Some(skybox.skybox.clone());
+        }
+
+        if let Ok(sky_setting) = sky_settings.get_single() {
+            mat.sky_settings = *sky_setting;
+        } else if let Some(sky_setting) = sky_settings.iter().nth(0) {
+            mat.sky_settings = *sky_setting;
+            warn!("More than one camera with SkyPostProcessSettings, using first in query");
+        } else {
+            warn!("No camera with SkyPostProcessSettings");
         }
     }
 }

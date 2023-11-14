@@ -254,12 +254,12 @@ impl FromWorld for SkyPassPostProcessPipeline {
 pub struct SkyPostProcessSettings {
     pub sun_color: Vec3,
     pub sun_falloff: f32,
+
     pub fog_color: Vec3,
     pub fog_density: f32,
     pub fog_offset: f32,
     pub fog_height: f32,
     pub fog_attenuation: f32,
-    pub skybox_speed: f32,
 }
 
 impl Default for SkyPostProcessSettings {
@@ -267,12 +267,12 @@ impl Default for SkyPostProcessSettings {
         Self {
             sun_color: Vec3::new(1.0, 0.9, 0.6),
             sun_falloff: 3500.0,
+
             fog_color: Vec3::new(1.0, 1.0, 1.0),
             fog_density: 0.01,
             fog_offset: 0.1,
             fog_height: 100.0,
             fog_attenuation: 1.25,
-            skybox_speed: 0.1,
         }
     }
 }
