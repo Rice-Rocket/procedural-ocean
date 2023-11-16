@@ -73,18 +73,25 @@ impl Default for OceanMaterial {
 
 #[derive(Debug, Clone, Reflect, ShaderType)]
 pub struct OceanSettings {
-    pub base_color: Vec3,
-    pub displacement_depth_attenuation: f32,
-    pub low_scatter: Vec3,
     pub normal_strength: f32,
-    pub sea_water_color: Vec3,
+    pub specular_normal_strength: f32,
+
     pub roughness: f32,
+    pub foam_roughness: f32,
+
     pub sun_power: f32,
-    pub ocean_depth: f32,
-    pub subsurface_strength: f32,
+    pub scatter_color: Vec3,
+    pub bubble_color: Vec3,
+    pub foam_color: Vec3,
+    pub height_modifier: f32,
+    pub bubble_density: f32,
+
+    pub wave_peak_scatter_strength: f32,
+    pub scatter_strength: f32,
+    pub scatter_shadow_strength: f32,
+    pub environment_light_strength: f32,
 
     pub foam_subtract: f32,
-    pub foam_color: Vec3,
     
     pub tile_layers: Vec4,
     pub contribute_layers: Vec4,
@@ -93,21 +100,28 @@ pub struct OceanSettings {
 impl Default for OceanSettings {
     fn default() -> Self {
         Self {
-            base_color: Vec3::new(0.1, 0.21, 0.35),
-            displacement_depth_attenuation: 1.0,
-            low_scatter: Vec3::new(1.0, 0.7, 0.5),
-            normal_strength: 0.8,
-            sea_water_color: Vec3::new(0.8, 0.9, 0.6) * 0.6,
-            roughness: 0.3,
-            sun_power: 50.0,
-            ocean_depth: 0.6,
-            subsurface_strength: 0.6,
+            normal_strength: 2.0,
+            specular_normal_strength: 3.0,
+
+            roughness: 0.075,
+            foam_roughness: 1.0,
+
+            sun_power: 5.0,
+            bubble_color: Vec3::new(0.01, 0.07, 0.2),
+            scatter_color: Vec3::new(0.0, 0.03, 0.02),
+            foam_color: Vec3::new(1.0, 1.0, 1.0),
+            height_modifier: 1.5,
+            bubble_density: 0.25,
+
+            wave_peak_scatter_strength: 2.0,
+            scatter_strength: 1.0,
+            scatter_shadow_strength: 0.5,
+            environment_light_strength: 0.4,
 
             foam_subtract: -0.84,
-            foam_color: Vec3::new(1.0, 1.0, 1.0),
 
-            tile_layers: Vec4::new(4.0, 8.0, 64.0, 128.0),
-            contribute_layers: Vec4::new(1.0, 1.0, 1.0, 0.0),
+            tile_layers: Vec4::new(4.0, 8.0, 64.0, 448.0),
+            contribute_layers: Vec4::new(1.0, 1.0, 1.0, 1.0),
         }
     }
 }

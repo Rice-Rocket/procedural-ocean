@@ -54,18 +54,25 @@ var skybox_sampler: sampler;
 
 
 struct OceanSettings {
-    base_color: vec3<f32>,
-    displacement_depth_attenuation: f32,
-    low_scatter: vec3<f32>,
     normal_strength: f32,
-    sea_water_color: vec3<f32>,
+    specular_normal_strength: f32,
+
     roughness: f32,
+    foam_roughness: f32,
+
     sun_power: f32,
-    ocean_depth: f32,
-    subsurface_strength: f32,
+    scatter_color: vec3<f32>,
+    bubble_color: vec3<f32>,
+    foam_color: vec3<f32>,
+    height_modifier: f32,
+    bubble_density: f32,
+
+    wave_peak_scatter_strength: f32,
+    scatter_strength: f32,
+    scatter_shadow_strength: f32,
+    environment_light_strength: f32,
 
     foam_subtract: f32,
-    foam_color: vec3<f32>,
 
     tile_layers: vec4<f32>,
     contribute_layers: vec4<f32>,
@@ -111,7 +118,7 @@ fn vertex(vertex: Vertex) -> MeshVertexOutput {
     out.position = mesh_functions::mesh_position_world_to_clip(out.world_position);
 
     out.uv = vertex.uv;
-    out.world_normal = vec3(displacement.a);
+    out.world_normal = vec3(displacement.a, displacement.y, 0.0);
 
     return out;
 }
@@ -121,21 +128,6 @@ const PI: f32 = 3.1415927;
 fn linearize_depth(depth: f32) -> f32 {
     let far_plane = 1000.0 - 0.1;
     return mix(1.0, view_bindings::view.projection[3][2] / depth / far_plane, f32(depth > 0.0001));
-    // return view_bindings::view.projection[3][2] / depth;
-}
-
-fn schlick(f0: f32, v_dot_h: f32) -> f32 {
-    return f0 + (1.0 - f0) * (1.0 - v_dot_h) * (1.0 - v_dot_h) * (1.0 - v_dot_h) * (1.0 - v_dot_h) * (1.0 - v_dot_h);
-}
-
-fn henyey_greenstein(mu: f32, in_g: f32) -> f32 {
-    return (1.0 - in_g * in_g) / (pow(1.0 + in_g * in_g - 2.0 * in_g * mu, 1.5) * 4.0 * PI);
-}
-
-fn d_ggx(r: f32, n_dot_h: f32, h: vec3<f32>) -> f32 {
-    let a = n_dot_h * r;
-    let k = r / ((1.0 - n_dot_h * n_dot_h) + a * a);
-    return k * k * (1.0 / PI);
 }
 
 fn get_sky_color(dir: vec3<f32>, sun_dir: vec3<f32>) -> vec3<f32> {
@@ -144,26 +136,20 @@ fn get_sky_color(dir: vec3<f32>, sun_dir: vec3<f32>) -> vec3<f32> {
     return sky + sun;
 }
 
-fn get_ocean_color(p: vec3<f32>, n: vec3<f32>, sun_dir: vec3<f32>, dir: vec3<f32>, mu: f32, foam: f32) -> vec3<f32> {
-    let l = normalize(reflect(dir, n));
-    let v = -dir;
+fn smith_masking_beckmann(h: vec3<f32>, s: vec3<f32>, roughness: f32) -> f32 {
+    let h_dot_s = max(0.001, saturate(dot(h, s)));
+    let a = h_dot_s / (roughness * sqrt(1.0 - h_dot_s * h_dot_s));
+    let a2 = a * a;
 
-    let n_dot_v = saturate(abs(dot(n, v)) + 0.00001);
-    var n_dot_l = max(0.0, dot(n, l));
-    let v_dot_h = max(0.0, dot(v, normalize(v + l)));
+    if (a < 1.6) {
+        return (1.0 - 1.259 * a + 0.396 * a2) / (3.535 * a + 2.181 * a2);
+    }
+    return 0.0;
+}
 
-    let fresnel = schlick(0.02, n_dot_v);
-    let reflection = get_sky_color(l, sun_dir);
-    var color = mix(mix(settings.base_color, settings.foam_color, foam), reflection, fresnel);
-
-    let subsurface = settings.subsurface_strength * henyey_greenstein(mu, 0.5);
-    color += subsurface * settings.sea_water_color * max(0.0, 1.0 + p.y - 0.6 * settings.ocean_depth);
-
-    let h = normalize(v + sun_dir);
-    n_dot_l = max(0.0, dot(n, sun_dir));
-    color += settings.low_scatter * 0.4 * vec3(n_dot_l / PI * fresnel * sky_settings.sun_color * settings.sun_power * d_ggx(settings.roughness, max(0.0, dot(n, h)), h));
-
-    return color;
+fn beckmann(n_dot_h: f32, roughness: f32) -> f32 {
+    let expo = (n_dot_h * n_dot_h - 1.0) / (roughness * roughness * n_dot_h * n_dot_h);
+    return exp(expo) / (PI * roughness * roughness * n_dot_h * n_dot_h * n_dot_h * n_dot_h);
 }
 
 @fragment
@@ -181,22 +167,65 @@ fn fragment(in: MeshVertexOutput) -> @location(0) vec4<f32> {
     let gradient_4 = textureSampleLevel(gradient_textures, gradient_sampler, uv4, 3, 0.0) * settings.contribute_layers.w; 
 
     var gradient = gradient_1.xyz + gradient_2.xyz + gradient_3.xyz + gradient_4.xyz;
+    let specular_gradient = gradient * settings.specular_normal_strength;
     gradient *= settings.normal_strength;
-
-    let scene_depth = linearize_depth(in.position.z);
 
     var foam = in.world_normal.x;
     // foam = mix(0.0, saturate(foam), pow())
 
     let macro_normal = vec3(0.0, 1.0, 0.0);
     let normal = normalize(vec3(-gradient.x, 1.0, -gradient.y));
+    let specular_normal = normalize(vec3(-specular_gradient.x, 1.0, -specular_gradient.y));
 
+    let sun_irradiance = sky_settings.sun_color * settings.sun_power;
     let directional_light = view_bindings::lights.directional_lights[0u];
-    let to_light = normalize(directional_light.direction_to_light);
-    var dir = normalize(in.world_position.xyz - view_bindings::view.world_position.xyz);
 
-    let mu = dot(to_light, dir);
-    let color = get_ocean_color(in.world_position.xyz, normal, to_light, dir, mu, saturate(foam));
+    let light_dir = normalize(directional_light.direction_to_light);
+    let view_dir = normalize(view_bindings::view.world_position.xyz - in.world_position.xyz);
+    let half_dir = normalize(light_dir + view_dir);
 
-    return vec4(color, 1.0);
+    let depth = linearize_depth(in.position.z);
+    let l_dot_h = saturate(dot(light_dir, half_dir));
+    let v_dot_h = saturate(dot(view_dir, half_dir));
+
+    let n_dot_l = saturate(dot(normal, light_dir));
+
+    let a = settings.roughness + saturate(foam) * settings.foam_roughness;
+    let n_dot_h = max(0.0001, dot(normal, half_dir));
+    
+    let view_mask = smith_masking_beckmann(half_dir, view_dir, a);
+    let light_mask = smith_masking_beckmann(half_dir, light_dir, a);
+
+    let g = 1.0 / (1.0 + view_mask + light_mask);
+
+    let eta = 1.33;
+    let r = ((eta - 1.0) * (eta - 1.0)) / ((eta + 1.0) * (eta + 1.0));
+    let theta_v = acos(view_dir.y);
+
+    let numerator = pow(1.0 - dot(normal, view_dir), 5.0 * exp(-2.69 * a));
+    var f = r + (1.0 - r) * numerator / (1.0 + 22.7 * pow(a, 1.5));
+    f = saturate(f);
+
+    var specular = sun_irradiance * f * g * beckmann(max(0.0001, dot(specular_normal, half_dir)), a);
+    specular /= 4.0 * max(0.001, saturate(dot(macro_normal, light_dir)));
+    specular *= saturate(dot(normal, light_dir));
+
+    var env_reflection = get_sky_color(reflect(-view_dir, normal), light_dir);
+    env_reflection *= settings.environment_light_strength;
+
+    let h = max(0.0, in.world_normal.y) * settings.height_modifier;
+
+    let k1 = settings.wave_peak_scatter_strength * h * pow(saturate(dot(light_dir, -view_dir)), 4.0) * pow(0.5 - 0.5 * dot(light_dir, normal), 3.0);
+    let k2 = settings.scatter_strength * pow(saturate(dot(view_dir, normal)), 2.0);
+    let k3 = settings.scatter_shadow_strength * n_dot_l;
+    let k4 = settings.bubble_density;
+
+    var scatter = (k1 + k2) * settings.scatter_color * sun_irradiance / (1.0 + light_mask);
+    scatter += k3 * settings.scatter_color * sun_irradiance + k4 * settings.bubble_color * sun_irradiance;
+
+    var output = /* (1.0 - f) * */scatter + specular + f * env_reflection;
+    output = max(vec3(0.0), output);
+    output = mix(output, settings.foam_color, saturate(foam));
+
+    return vec4(output, 1.0);
 }

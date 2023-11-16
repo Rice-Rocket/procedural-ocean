@@ -56,7 +56,7 @@ impl Default for OceanComputeSettings {
             length_scale_2: 32,
             length_scale_3: 16,
             n: TEXTURE_SIZE,
-            compute_layers: 3,
+            compute_layers: 4,
             delta_time: 0.0,
             seed: 0,
             foam_threshold: 0.1,
