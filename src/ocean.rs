@@ -73,6 +73,9 @@ impl Default for OceanMaterial {
 
 #[derive(Debug, Clone, Reflect, ShaderType)]
 pub struct OceanSettings {
+    pub normal_depth_attenuation: f32,
+    pub foam_depth_attenuation: f32,
+
     pub normal_strength: f32,
     pub specular_normal_strength: f32,
 
@@ -100,13 +103,16 @@ pub struct OceanSettings {
 impl Default for OceanSettings {
     fn default() -> Self {
         Self {
+            normal_depth_attenuation: 0.01,
+            foam_depth_attenuation: 0.05,
+
             normal_strength: 2.0,
             specular_normal_strength: 3.0,
 
             roughness: 0.075,
             foam_roughness: 1.0,
 
-            sun_power: 5.0,
+            sun_power: 8.0,
             bubble_color: Vec3::new(0.01, 0.07, 0.2),
             scatter_color: Vec3::new(0.0, 0.03, 0.02),
             foam_color: Vec3::new(1.0, 1.0, 1.0),
@@ -114,7 +120,7 @@ impl Default for OceanSettings {
             bubble_density: 0.25,
 
             wave_peak_scatter_strength: 2.0,
-            scatter_strength: 1.0,
+            scatter_strength: 0.5,
             scatter_shadow_strength: 0.5,
             environment_light_strength: 0.4,
 

@@ -54,6 +54,9 @@ var skybox_sampler: sampler;
 
 
 struct OceanSettings {
+    normal_depth_attenuation: f32,
+    foam_depth_attenuation: f32,
+
     normal_strength: f32,
     specular_normal_strength: f32,
 
@@ -170,13 +173,6 @@ fn fragment(in: MeshVertexOutput) -> @location(0) vec4<f32> {
     let specular_gradient = gradient * settings.specular_normal_strength;
     gradient *= settings.normal_strength;
 
-    var foam = in.world_normal.x;
-    // foam = mix(0.0, saturate(foam), pow())
-
-    let macro_normal = vec3(0.0, 1.0, 0.0);
-    let normal = normalize(vec3(-gradient.x, 1.0, -gradient.y));
-    let specular_normal = normalize(vec3(-specular_gradient.x, 1.0, -specular_gradient.y));
-
     let sun_irradiance = sky_settings.sun_color * settings.sun_power;
     let directional_light = view_bindings::lights.directional_lights[0u];
 
@@ -187,6 +183,15 @@ fn fragment(in: MeshVertexOutput) -> @location(0) vec4<f32> {
     let depth = linearize_depth(in.position.z);
     let l_dot_h = saturate(dot(light_dir, half_dir));
     let v_dot_h = saturate(dot(view_dir, half_dir));
+
+    let macro_normal = vec3(0.0, 1.0, 0.0);
+    var normal = normalize(vec3(-gradient.x, 1.0, -gradient.y));
+    var specular_normal = normalize(vec3(-specular_gradient.x, 1.0, -specular_gradient.y));
+    normal = normalize(mix(macro_normal, normal, pow(saturate(depth), settings.normal_depth_attenuation)));
+    specular_normal = normalize(mix(macro_normal, specular_normal, pow(saturate(depth), settings.normal_depth_attenuation)));
+
+    var foam = in.world_normal.x;
+    foam = mix(0.0, saturate(foam), pow(depth, settings.foam_depth_attenuation));
 
     let n_dot_l = saturate(dot(normal, light_dir));
 

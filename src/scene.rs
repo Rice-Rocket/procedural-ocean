@@ -4,7 +4,7 @@ use bevy_panorbit_camera::PanOrbitCamera;
 use crate::{ocean::OceanMaterial, sky::{SkyPostProcessSettings, SkyboxCubemap}};
 
 pub const PLANE_LENGTH: f32 = 200.0;
-pub const PLANE_RES: usize = 2;
+pub const PLANE_RES: usize = 4;
 // pub const PLANE_LENGTH: f32 = 10.0;
 // pub const PLANE_RES: usize = 10;
 
@@ -15,7 +15,7 @@ pub fn setup_scene(
     mut meshes: ResMut<Assets<Mesh>>,
     asset_server: Res<AssetServer>,
 ) {
-    let skybox_handle = asset_server.load("cubemaps/cloudy.png");
+    let skybox_handle = asset_server.load("cubemaps/pure-blue.png");
 
     commands.spawn((
         Camera3dBundle {
@@ -32,12 +32,18 @@ pub fn setup_scene(
         DepthPrepass,
     ));
 
-    commands.spawn(MaterialMeshBundle {
-        mesh: meshes.add(create_ocean_plane()),
-        material: materials.add(OceanMaterial::default()),
-        transform: Transform::from_xyz(0.0, 0.0, 0.0),
-        ..default()
-    });
+    commands.spawn((
+        MaterialMeshBundle {
+            mesh: meshes.add(create_ocean_plane()),
+            material: materials.add(OceanMaterial::default()),
+            // material: materials.add(OceanMaterial::default()),
+            transform: Transform::from_xyz(0.0, 0.0, 0.0),
+            ..default()
+        },
+        // DynamicDetail {
+
+        // },
+    ));
 
     commands.spawn(DirectionalLightBundle {
         directional_light: DirectionalLight {

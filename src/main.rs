@@ -6,6 +6,7 @@ pub mod scene;
 pub mod ocean;
 pub mod compute;
 pub mod sky;
+// pub mod lod;
 
 use scene::*;
 use ocean::*;
